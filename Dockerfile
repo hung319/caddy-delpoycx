@@ -1,32 +1,54 @@
-# Stage 1: Build Caddy với plugin cloudflare
-FROM caddy:builder-alpine AS builder
-RUN xcaddy build --with github.com/caddy-dns/cloudflare
+# Sử dụng base image Alpine Linux mới nhất để giữ cho image nhỏ gọn
+FROM alpine:latest
 
-# Stage 2: Final image
-FROM alpine:3.20
+# Metadata cho image
+LABEL maintainer="Coder"
+LABEL description="Caddy with Cloudflared tunnel and a web UI, configured via environment variables."
 
-# Cài dependencies
-RUN apk add --no-cache supervisor python3 py3-pip curl git bash
+# Khai báo các biến môi trường cho phiên bản để dễ dàng cập nhật
+ENV CADDY_VERSION=2.8.4
+ENV CLOUDFLARED_VERSION=2024.9.1
+ENV CADDY_UI_VERSION=1.3.1
 
-# Copy Caddy đã build từ stage 1
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+# Khai báo các biến môi trường mà người dùng sẽ cung cấp lúc chạy container
+ENV CLOUDFLARE_TOKEN=""
+ENV CADDY_ADMIN_USER="admin"
+ENV CADDY_ADMIN_PASSWORD=""
+ENV CADDY_DOMAIN="localhost"
 
-# Cài cloudflared
-RUN curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 \
-    -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared
+# Build-time argument để build image cho nhiều kiến trúc CPU (amd64, arm64)
+ARG TARGETARCH
 
-# Setup working dir
-WORKDIR /app
+# Cài đặt các package cần thiết và dọn dẹp cache
+RUN apk update && apk add --no-cache \
+    caddy=${CADDY_VERSION}-r0 \
+    supervisor \
+    bash \
+    curl \
+    # Thêm repo của Caddy
+    && echo "http://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories
 
-# Clone webui + cài requirements
-RUN git clone https://github.com/0xJacky/caddy-webui /webui && \
-    pip3 install -r /webui/requirements.txt
+# Cài đặt cloudflared
+RUN ARCH=${TARGETARCH:-amd64} && \
+    curl -L --output cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${ARCH}" && \
+    chmod +x cloudflared && \
+    mv cloudflared /usr/local/bin/cloudflared
 
-# Copy file cấu hình
-COPY app.py /webui/app.py
-COPY Caddyfile /etc/caddy/Caddyfile
+# Tải và cài đặt Caddy Admin UI (giao diện web để quản lý Caddy)
+RUN mkdir -p /var/www/html/caddy-ui && \
+    curl -L https://github.com/caddyserver/admin-ui/releases/download/v${CADDY_UI_VERSION}/caddy-admin-ui.tar.gz -o /tmp/caddy-ui.tar.gz && \
+    tar -xzf /tmp/caddy-ui.tar.gz -C /var/www/html/caddy-ui && \
+    rm /tmp/caddy-ui.tar.gz
+
+# Copy file cấu hình của Supervisor
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-EXPOSE 80 443 5000
+# Copy và cấp quyền thực thi cho entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Port mà Caddy sẽ lắng nghe bên trong container
+EXPOSE 80
+
+# Chạy entrypoint script khi container khởi động
+ENTRYPOINT ["/entrypoint.sh"]
