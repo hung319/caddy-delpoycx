@@ -1,6 +1,6 @@
 # === STAGE 1: BUILDER ===
-# Sử dụng base image Golang để build Caddy từ source
-FROM golang:1.22-alpine AS builder
+# SỬA ĐỔI Ở ĐÂY: Nâng cấp phiên bản Golang lên 1.25 để tương thích với plugin
+FROM golang:1.25-alpine AS builder
 
 # Cài đặt các công cụ cần thiết cho build
 RUN apk add --no-cache git bash
