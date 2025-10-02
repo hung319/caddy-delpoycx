@@ -1,50 +1,55 @@
-# Sử dụng base image Alpine 3.21, chứa Caddy 2.8.4-r7
-FROM alpine:3.21
+# === STAGE 1: BUILDER ===
+# Sử dụng base image Golang để build Caddy từ source
+FROM golang:1.22-alpine AS builder
+
+# Cài đặt các công cụ cần thiết cho build
+RUN apk add --no-cache git bash
+
+# Cài đặt xcaddy
+RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
+
+# Build Caddy với plugin admin UI
+# Ghim phiên bản Caddy để đảm bảo build ổn định
+RUN xcaddy build v2.8.4 \
+    --with github.com/gsmlg-dev/caddy-admin-ui@main
+
+# === STAGE 2: FINAL IMAGE ===
+# Bắt đầu từ một base image Alpine sạch và nhẹ
+FROM alpine:3.20
 
 # Metadata cho image
 LABEL maintainer="Coder"
-LABEL description="Caddy with Cloudflared tunnel and a web UI, configured via environment variables."
+LABEL description="Caddy with Cloudflared, built with a custom Admin UI plugin."
 
-# Khai báo các biến môi trường cho phiên bản để dễ dàng cập nhật
 ENV CLOUDFLARED_VERSION=2024.9.1
-ENV CADDY_UI_VERSION=1.3.1
 
-# Khai báo các biến môi trường mà người dùng sẽ cung cấp lúc chạy container
+# Các biến môi trường cho runtime
 ENV CLOUDFLARE_TOKEN=""
 ENV CADDY_ADMIN_USER="admin"
 ENV CADDY_ADMIN_PASSWORD=""
 
-# Build-time argument để build image cho nhiều kiến trúc CPU (amd64, arm64)
-ARG TARGETARCH
-
-# Cài đặt các package cần thiết
-RUN apk update && apk add --no-cache \
-    caddy=2.8.4-r7 \
+# Cài đặt các dependencies cần thiết để chạy, không cần caddy từ repo nữa
+RUN apk add --no-cache \
     supervisor \
     bash \
-    curl
+    curl \
+    ca-certificates
 
 # Cài đặt cloudflared
+ARG TARGETARCH
 RUN ARCH=${TARGETARCH:-amd64} && \
     curl -L --output cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${ARCH}" && \
     chmod +x cloudflared && \
     mv cloudflared /usr/local/bin/cloudflared
 
-# Tải và cài đặt Caddy Admin UI
-RUN mkdir -p /var/www/html/caddy-ui && \
-    curl -L https://github.com/caddyserver/admin-ui/releases/download/v${CADDY_UI_VERSION}/caddy-admin-ui.tar.gz -o /tmp/caddy-ui.tar.gz && \
-    tar -xzf /tmp/caddy-ui.tar.gz -C /var/www/html/caddy-ui && \
-    rm /tmp/caddy-ui.tar.gz
+# Copy file Caddy đã được custom build từ stage builder
+COPY --from=builder /caddy /usr/sbin/caddy
 
-# Copy file cấu hình của Supervisor
+# Copy các file cấu hình
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Copy và cấp quyền thực thi cho entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-# Port mà Caddy sẽ lắng nghe bên trong container
 EXPOSE 80
 
-# Chạy entrypoint script khi container khởi động
 ENTRYPOINT ["/entrypoint.sh"]
