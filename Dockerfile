@@ -1,13 +1,16 @@
 # === STAGE 1: BUILDER ===
 FROM golang:1.25-alpine AS builder
 
+# THÊM DÒNG NÀY: Thiết lập thư mục làm việc rõ ràng
+WORKDIR /app
+
 # Cài đặt các công cụ cần thiết cho build
 RUN apk add --no-cache git bash
 
 # Cài đặt xcaddy
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
-# SỬA ĐỔI Ở ĐÂY: Nâng cấp phiên bản Caddy lên v2.9.1 để tương thích với plugin
+# Build Caddy với plugin admin UI. File 'caddy' sẽ được tạo trong /app
 RUN xcaddy build v2.9.1 \
     --with github.com/gsmlg-dev/caddy-admin-ui@main
 
@@ -39,8 +42,8 @@ RUN ARCH=${TARGETARCH:-amd64} && \
     chmod +x cloudflared && \
     mv cloudflared /usr/local/bin/cloudflared
 
-# Copy file Caddy đã được custom build từ stage builder
-COPY --from=builder /caddy /usr/sbin/caddy
+# SỬA ĐỔI Ở ĐÂY: Copy file Caddy từ đúng đường dẫn trong stage builder
+COPY --from=builder /app/caddy /usr/sbin/caddy
 
 # Copy các file cấu hình
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
