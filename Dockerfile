@@ -1,12 +1,11 @@
-# Sử dụng base image Alpine 3.18, phiên bản chứa Caddy 2.8.4
-FROM alpine:3.18
+# Sử dụng base image Alpine 3.21, chứa Caddy 2.8.4-r7
+FROM alpine:3.21
 
 # Metadata cho image
 LABEL maintainer="Coder"
 LABEL description="Caddy with Cloudflared tunnel and a web UI, configured via environment variables."
 
 # Khai báo các biến môi trường cho phiên bản để dễ dàng cập nhật
-# CADDY_VERSION đã được xác định bởi base image nên không cần ghim cứng ở đây nữa
 ENV CLOUDFLARED_VERSION=2024.9.1
 ENV CADDY_UI_VERSION=1.3.1
 
@@ -18,11 +17,9 @@ ENV CADDY_ADMIN_PASSWORD=""
 # Build-time argument để build image cho nhiều kiến trúc CPU (amd64, arm64)
 ARG TARGETARCH
 
-# Cài đặt các package cần thiết.
-# Không cần thêm repo v3.18 nữa vì đã là base image.
-# Cài đúng phiên bản caddy=2.8.4-r0 từ repo community của Alpine 3.18
+# Cài đặt các package cần thiết
 RUN apk update && apk add --no-cache \
-    caddy=2.8.4-r0 \
+    caddy=2.8.4-r7 \
     supervisor \
     bash \
     curl
