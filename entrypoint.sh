@@ -16,31 +16,27 @@ fi
 echo "Đang hash mật khẩu cho Caddy admin..."
 HASHED_PASSWORD=$(caddy hash-password --plaintext "$CADDY_ADMIN_PASSWORD")
 
-# 3. Tạo file Caddyfile
+# 3. Tạo file Caddyfile với cấu trúc cho plugin admin UI
 echo "Đang tạo file /etc/caddy/Caddyfile..."
 cat <<EOF > /etc/caddy/Caddyfile
 {
+    # Admin API chỉ lắng nghe trên localhost bên trong container để bảo mật
     admin 127.0.0.1:2019
     auto_https off
 }
 
-# Web server chính sẽ lắng nghe trên port 80 cho mọi hostname
+# Server chính, lắng nghe trên port 80
 :80 {
     # Bảo vệ toàn bộ trang bằng Basic Auth
     basic_auth {
         ${CADDY_ADMIN_USER} ${HASHED_PASSWORD}
     }
 
-    # Route tới Admin API
-    route /api/* {
-        reverse_proxy 127.0.0.1:2019
-    }
+    # Kích hoạt UI từ plugin
+    caddy_admin_ui
 
-    # Route phục vụ các file tĩnh của Admin UI
-    route {
-        root * /var/www/html/caddy-ui
-        file_server
-    }
+    # Reverse proxy các request /api/* tới Admin API nội bộ
+    reverse_proxy /api/* 127.0.0.1:2019
 }
 EOF
 
