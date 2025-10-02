@@ -1,5 +1,4 @@
 # === STAGE 1: BUILDER ===
-# SỬA ĐỔI Ở ĐÂY: Nâng cấp phiên bản Golang lên 1.25 để tương thích với plugin
 FROM golang:1.25-alpine AS builder
 
 # Cài đặt các công cụ cần thiết cho build
@@ -8,13 +7,11 @@ RUN apk add --no-cache git bash
 # Cài đặt xcaddy
 RUN go install github.com/caddyserver/xcaddy/cmd/xcaddy@latest
 
-# Build Caddy với plugin admin UI
-# Ghim phiên bản Caddy để đảm bảo build ổn định
-RUN xcaddy build v2.8.4 \
+# SỬA ĐỔI Ở ĐÂY: Nâng cấp phiên bản Caddy lên v2.9.1 để tương thích với plugin
+RUN xcaddy build v2.9.1 \
     --with github.com/gsmlg-dev/caddy-admin-ui@main
 
 # === STAGE 2: FINAL IMAGE ===
-# Bắt đầu từ một base image Alpine sạch và nhẹ
 FROM alpine:3.20
 
 # Metadata cho image
@@ -28,7 +25,7 @@ ENV CLOUDFLARE_TOKEN=""
 ENV CADDY_ADMIN_USER="admin"
 ENV CADDY_ADMIN_PASSWORD=""
 
-# Cài đặt các dependencies cần thiết để chạy, không cần caddy từ repo nữa
+# Cài đặt các dependencies cần thiết để chạy
 RUN apk add --no-cache \
     supervisor \
     bash \
