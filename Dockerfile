@@ -1,12 +1,12 @@
-# Sử dụng base image Alpine Linux mới nhất để giữ cho image nhỏ gọn
-FROM alpine:latest
+# Sử dụng base image Alpine 3.18, phiên bản chứa Caddy 2.8.4
+FROM alpine:3.18
 
 # Metadata cho image
 LABEL maintainer="Coder"
 LABEL description="Caddy with Cloudflared tunnel and a web UI, configured via environment variables."
 
 # Khai báo các biến môi trường cho phiên bản để dễ dàng cập nhật
-ENV CADDY_VERSION=2.8.4
+# CADDY_VERSION đã được xác định bởi base image nên không cần ghim cứng ở đây nữa
 ENV CLOUDFLARED_VERSION=2024.9.1
 ENV CADDY_UI_VERSION=1.3.1
 
@@ -14,19 +14,18 @@ ENV CADDY_UI_VERSION=1.3.1
 ENV CLOUDFLARE_TOKEN=""
 ENV CADDY_ADMIN_USER="admin"
 ENV CADDY_ADMIN_PASSWORD=""
-ENV CADDY_DOMAIN="localhost"
 
 # Build-time argument để build image cho nhiều kiến trúc CPU (amd64, arm64)
 ARG TARGETARCH
 
-# Cài đặt các package cần thiết và dọn dẹp cache
+# Cài đặt các package cần thiết.
+# Không cần thêm repo v3.18 nữa vì đã là base image.
+# Cài đúng phiên bản caddy=2.8.4-r0 từ repo community của Alpine 3.18
 RUN apk update && apk add --no-cache \
-    caddy=${CADDY_VERSION}-r0 \
+    caddy=2.8.4-r0 \
     supervisor \
     bash \
-    curl \
-    # Thêm repo của Caddy
-    && echo "http://dl-cdn.alpinelinux.org/alpine/v3.18/community" >> /etc/apk/repositories
+    curl
 
 # Cài đặt cloudflared
 RUN ARCH=${TARGETARCH:-amd64} && \
@@ -34,7 +33,7 @@ RUN ARCH=${TARGETARCH:-amd64} && \
     chmod +x cloudflared && \
     mv cloudflared /usr/local/bin/cloudflared
 
-# Tải và cài đặt Caddy Admin UI (giao diện web để quản lý Caddy)
+# Tải và cài đặt Caddy Admin UI
 RUN mkdir -p /var/www/html/caddy-ui && \
     curl -L https://github.com/caddyserver/admin-ui/releases/download/v${CADDY_UI_VERSION}/caddy-admin-ui.tar.gz -o /tmp/caddy-ui.tar.gz && \
     tar -xzf /tmp/caddy-ui.tar.gz -C /var/www/html/caddy-ui && \
