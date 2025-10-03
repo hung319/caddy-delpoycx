@@ -18,7 +18,7 @@ RUN apk add --no-cache \
     py3-pip
 
 # Cài đặt cloudflared
-ENV CLOUDFLARED_VERSION=2024.9.1
+ENV CLOUDFLARED_VERSION=2025.9.1
 ARG TARGETARCH
 RUN ARCH=${TARGETARCH:-amd64} && \
     curl -L --output cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${ARCH}" && \
