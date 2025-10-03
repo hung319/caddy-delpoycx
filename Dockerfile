@@ -20,7 +20,7 @@ RUN apk add --no-cache \
     py3-boto3
 
 # ... (Phần cài đặt cloudflared không đổi) ...
-ENV CLOUDFLARED_VERSION=2024.9.1
+ENV CLOUDFLARED_VERSION=2025.9.1
 ARG TARGETARCH
 RUN ARCH=${TARGETARCH:-amd64} && \
     curl -L --output cloudflared "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-${ARCH}" && \
@@ -42,7 +42,7 @@ ENV CADDY_ADMIN_USER="admin"
 ENV CADDY_ADMIN_PASSWORD=""
 # THAY ĐỔI BIẾN MÔI TRƯỜNG CHO S3 TƯƠNG THÍCH
 ENV S3_BUCKET_NAME=""
-ENV S3_ENDPOINT_URL="" # Ví dụ: "https://s3.your-provider.com"
+ENV S3_ENDPOINT_URL=""
 ENV AWS_ACCESS_KEY_ID=""
 ENV AWS_SECRET_ACCESS_KEY=""
 
