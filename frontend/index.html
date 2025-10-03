@@ -6,66 +6,85 @@
     <title>Caddy Config Editor</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5; color: #333; margin: 2em; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .container { max-width: 90%; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h1 { color: #0052d4; }
-        textarea { width: 98%; min-height: 400px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 14px; }
         button { background-color: #0052d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
         button:hover { background-color: #003b9e; }
-        #status { background-color: #eee; padding: 1em; border-radius: 4px; margin-top: 1em; white-space: pre-wrap; word-wrap: break-word; }
+        #status { background-color: #eee; padding: 1em; border-radius: 4px; margin-top: 1em; white-space: pre-wrap; word-wrap: break-word; color: #c0392b; }
+        #status.success { color: #27ae60; }
+        /* Thêm CSS cho CodeMirror */
+        .CodeMirror { border: 1px solid #ccc; border-radius: 4px; font-size: 14px; height: 500px; }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material.min.css">
 </head>
 <body>
     <div class="container">
         <h1>Caddy Config Editor</h1>
         <form id="config-form">
-            <textarea id="caddyfile-content" placeholder="Paste your Caddyfile content here..."></textarea>
+            <textarea id="caddyfile-content"></textarea>
             <button type="submit">Update Config</button>
         </form>
         <h3>Status:</h3>
         <pre id="status">Loading current config...</pre>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/nginx/nginx.min.js"></script>
     <script>
         const form = document.getElementById('config-form');
-        const content = document.getElementById('caddyfile-content');
         const status = document.getElementById('status');
 
-        // Lấy config hiện tại khi tải trang
+        // Khởi tạo CodeMirror
+        const editor = CodeMirror.fromTextArea(document.getElementById('caddyfile-content'), {
+            lineNumbers: true,
+            mode: 'nginx',
+            theme: 'material',
+            lineWrapping: true
+        });
+
+        // Lấy config hiện tại
         async function getCurrentConfig() {
+            // ... (hàm này giữ nguyên)
             try {
                 const response = await fetch('/api/get-config');
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
-                content.value = data.caddyfile;
+                editor.setValue(data.caddyfile); // Dùng setValue của editor
                 status.textContent = 'Current config loaded successfully.';
+                status.classList.add('success');
             } catch (error) {
-                status.textContent = 'Error loading current config: ' + error.message;
+                status.textContent = 'Error loading config: ' + error.message;
             }
         }
 
-        // Gửi config mới khi submit form
+        // Gửi config mới
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             status.textContent = 'Updating...';
+            status.classList.remove('success');
             try {
                 const response = await fetch('/api/update-config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: content.value,
+                    body: editor.getValue(), // Dùng getValue của editor
                 });
 
                 const result = await response.json();
                 if (!response.ok) {
-                    throw new Error(result.error || `HTTP error! status: ${response.status}`);
+                    let errorMessage = result.error || `HTTP error! status: ${response.status}`;
+                    if (result.details) {
+                        errorMessage += "\n\n--- Caddy Error Details ---\n" + result.details;
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 status.textContent = 'Success!\n\n' + JSON.stringify(result, null, 2);
+                status.classList.add('success');
             } catch (error) {
                 status.textContent = 'Error updating config:\n\n' + error.message;
             }
         });
 
-        // Tải config lúc ban đầu
         getCurrentConfig();
     </script>
 </body>
