@@ -16,7 +16,7 @@ fi
 echo "Đang hash mật khẩu cho Caddy admin..."
 HASHED_PASSWORD=$(caddy hash-password --plaintext "$CADDY_ADMIN_PASSWORD")
 
-# 3. Tạo file Caddyfile với cấu trúc cho plugin admin UI
+# 3. Tạo file Caddyfile với cú pháp route chính xác
 echo "Đang tạo file /etc/caddy/Caddyfile..."
 cat <<EOF > /etc/caddy/Caddyfile
 {
@@ -32,11 +32,14 @@ cat <<EOF > /etc/caddy/Caddyfile
         ${CADDY_ADMIN_USER} ${HASHED_PASSWORD}
     }
 
-    # Kích hoạt UI từ plugin
-    caddy_admin_ui
+    # SỬA ĐỔI Ở ĐÂY: Thêm khối route
+    route {
+        # Kích hoạt UI từ plugin
+        caddy_admin_ui
 
-    # Reverse proxy các request /api/* tới Admin API nội bộ
-    reverse_proxy /api/* 127.0.0.1:2019
+        # Reverse proxy các request /api/* tới Admin API nội bộ
+        reverse_proxy /api/* 127.0.0.1:2019
+    }
 }
 EOF
 
