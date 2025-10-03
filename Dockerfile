@@ -14,7 +14,7 @@ FROM alpine:3.20
 LABEL maintainer="Coder"
 LABEL description="Caddy with Cloudflared, built with a custom Admin UI plugin."
 
-ENV CLOUDFLARED_VERSION=2024.9.1
+ENV CLOUDFLARED_VERSION=2025.9.1
 ENV CLOUDFLARE_TOKEN=""
 ENV CADDY_ADMIN_USER="admin"
 ENV CADDY_ADMIN_PASSWORD=""
