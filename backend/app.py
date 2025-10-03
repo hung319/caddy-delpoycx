@@ -28,6 +28,9 @@ def update_config():
     if not new_caddyfile_content:
         return jsonify({"error": "Empty Caddyfile content"}), 400
 
+    # SỬA ĐỔI Ở ĐÂY: Chuẩn hóa ký tự xuống dòng để loại bỏ '\r'
+    new_caddyfile_content = new_caddyfile_content.replace('\r', '')
+
     # 1. Adapt Caddyfile sang JSON
     try:
         # Chạy lệnh caddy adapt để chuyển đổi
