@@ -13,7 +13,7 @@ def serve_frontend():
 
 @app.route('/api/get-config', methods=['GET'])
 def get_config():
-    """Đọc và trả về nội dung Caddyfile hiện tại."""
+    """Đọc và trả về nội dung Caddyfile hiện tại. (Giữ nguyên)"""
     try:
         with open(CADDYFILE_PATH, 'r') as f:
             content = f.read()
@@ -21,47 +21,49 @@ def get_config():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# SỬA ĐỔI LỚN Ở ĐÂY
 @app.route('/api/update-config', methods=['POST'])
 def update_config():
-    """Nhận Caddyfile mới, adapt sang JSON và load vào Caddy."""
+    """Nhận Caddyfile, dùng API /adapt để chuyển sang JSON, rồi dùng API /load để cập nhật."""
     new_caddyfile_content = request.data.decode('utf-8')
     if not new_caddyfile_content:
         return jsonify({"error": "Empty Caddyfile content"}), 400
 
-    # SỬA ĐỔI Ở ĐÂY: Chuẩn hóa ký tự xuống dòng để loại bỏ '\r'
+    # Chuẩn hóa ký tự xuống dòng
     new_caddyfile_content = new_caddyfile_content.replace('\r', '')
 
-    # 1. Adapt Caddyfile sang JSON
+    # 1. Dùng API /adapt của Caddy để chuyển Caddyfile sang JSON
     try:
-        # Chạy lệnh caddy adapt để chuyển đổi
-        process = subprocess.run(
-            ['caddy', 'adapt', '--config', '-', '--pretty'],
-            input=new_caddyfile_content,
-            capture_output=True,
-            text=True,
-            check=True
+        adapt_response = requests.post(
+            f"{CADDY_ADMIN_API}/adapt",
+            headers={"Content-Type": "text/caddyfile"},
+            data=new_caddyfile_content.encode('utf-8')
         )
-        json_config = process.stdout
-    except subprocess.CalledProcessError as e:
-        return jsonify({"error": "Failed to adapt Caddyfile", "details": e.stderr}), 500
-    
-    # 2. Gửi JSON config tới Caddy Admin API
+        adapt_response.raise_for_status()
+        json_config = adapt_response.json()
+    except requests.RequestException as e:
+        # Lấy chi tiết lỗi từ Caddy nếu có
+        details = e.response.text if e.response else str(e)
+        return jsonify({"error": "Failed to adapt Caddyfile via API", "details": details}), 500
+
+    # 2. Dùng API /load để gửi JSON config mới vào Caddy
     try:
-        response = requests.post(
+        load_response = requests.post(
             f"{CADDY_ADMIN_API}/load",
             headers={"Content-Type": "application/json"},
-            data=json_config
+            json=json_config
         )
-        response.raise_for_status() # Ném lỗi nếu status code là 4xx hoặc 5xx
+        load_response.raise_for_status()
     except requests.RequestException as e:
-        return jsonify({"error": "Failed to post config to Caddy Admin API", "details": str(e)}), 500
+        details = e.response.text if e.response else str(e)
+        return jsonify({"error": "Failed to load config to Caddy via API", "details": details}), 500
 
-    # 3. Lưu lại Caddyfile mới nếu thành công
+    # 3. Lưu lại Caddyfile mới nếu mọi thứ thành công
     try:
         with open(CADDYFILE_PATH, 'w') as f:
             f.write(new_caddyfile_content)
     except Exception as e:
-        return jsonify({"error": "Config loaded to Caddy, but failed to save Caddyfile", "details": str(e)}), 500
+        return jsonify({"error": "Config loaded, but failed to save Caddyfile", "details": str(e)}), 500
         
     return jsonify({"message": "Caddy config updated and saved successfully!"})
 
