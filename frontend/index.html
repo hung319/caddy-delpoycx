@@ -5,18 +5,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caddy Config Editor</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5; color: #333; margin: 0; padding: 2em; }
-        .main-container { display: flex; gap: 2em; max-width: 1200px; margin: auto; }
-        .editor-container { flex: 3; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .backup-container { flex: 1; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h1, h2 { color: #0052d4; }
-        button { background-color: #0052d4; color: white; border: none; padding: 10px 20px; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
-        button:hover { background-color: #003b9e; }
-        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.75); color: white; padding: 20px 40px; border-radius: 8px; z-index: 1000; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; text-align: center; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            margin: 0;
+            padding: 2em;
+        }
+        .main-container {
+            display: flex;
+            gap: 2em;
+            max-width: 1200px;
+            margin: auto;
+        }
+        .editor-container {
+            flex: 3;
+            background: white;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .backup-container {
+            flex: 1;
+            background: white;
+            padding: 2em;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #0052d4;
+            margin-top: 0;
+        }
+        button {
+            background-color: #0052d4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #003b9e;
+        }
+        #backup-list ul {
+            list-style: none;
+            padding: 0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        #backup-list li {
+            background: #eee;
+            margin-bottom: 5px;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            word-break: break-all;
+        }
+        #backup-list li:hover {
+            background: #ddd;
+        }
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+            text-align: center;
+        }
         .toast.show { opacity: 1; }
         .toast.success { background-color: #27ae60; }
         .toast.error { background-color: #c0392b; }
-        .CodeMirror { border: 1px solid #ccc; border-radius: 4px; font-size: 14px; height: 600px; }
+        .CodeMirror {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            height: 600px;
+        }
+
+        /* --- PHẦN RESPONSIVE MỚI --- */
+        /* Áp dụng các style này khi màn hình rộng tối đa 768px */
+        @media (max-width: 768px) {
+            body {
+                padding: 1em; /* Giảm padding trên màn hình nhỏ */
+            }
+            .main-container {
+                flex-direction: column; /* Chuyển layout thành 1 cột dọc */
+                width: 100%;
+                padding: 0;
+            }
+            .editor-container, .backup-container {
+                padding: 1em;
+            }
+            .CodeMirror {
+                height: 400px; /* Giảm chiều cao của editor trên mobile */
+            }
+            h1 { font-size: 1.8em; }
+            h2 { font-size: 1.5em; }
+        }
     </style>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/material.min.css">
@@ -31,7 +126,7 @@
             </form>
         </div>
         <div class="backup-container">
-            <h2>Backup</h2>
+            <h2>Backups</h2>
             <button id="restore-btn">Restore from S3 Backup</button>
             <p style="font-size: 12px; color: #666; margin-top: 1em;">Restores the latest backup from your S3 bucket into the editor.</p>
         </div>
@@ -41,6 +136,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/nginx/nginx.min.js"></script>
     <script>
+        // --- PHẦN JAVASCRIPT GIỮ NGUYÊN ---
         const editor = CodeMirror.fromTextArea(document.getElementById('caddyfile-content'), { lineNumbers: true, mode: 'nginx', theme: 'material', lineWrapping: true });
         const form = document.getElementById('config-form');
         const restoreBtn = document.getElementById('restore-btn');
@@ -75,10 +171,10 @@
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             try {
-                const response = await fetch('/api/update-config', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'text/plain' }, 
-                    body: editor.getValue() 
+                const response = await fetch('/api/update-config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: editor.getValue()
                 });
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.details || result.error);
